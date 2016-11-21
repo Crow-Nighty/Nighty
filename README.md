@@ -1,24 +1,20 @@
 ## Features
 
-- Account Generator
-- Admin Page/Settings
-- Generators (Add and Delete)
-- Accounts (Add and Delete)
-- User Settings (Delete and Change Payment or Type)
-- Payment System (PayPal Only)
-- Term of Service Information Panel
 - Simple UI
+- Admin Settings
+- Account Generators
+- Contact System
 
-## Picture
+## Changes from V1.0 - V2.0
 
-[LINK](http://i.imgur.com/5AuY9Tq.jpg)
+- Changed Generators from List to Grid
+- Added Contact System
+- Changed UI Look and Feel
+- Sorted Dorp Menu for Administrator Settings
 
-## Setup
+## Pictures
 
-- Make new database (any name)
-- Open and modify db.php
-- Move files to your host
-- Goto [yourdomain]/setup.php
+** Coming Soon **
 
 ## Donations
 
@@ -26,7 +22,7 @@ BTC: 192pY7toABku11xSzghUmqhXAgzYXMRHYV
 
 ## Terms of Service (T.O.S)
 
-- Do not modify this website
+- Do not modify footer of this website
 - Do not sell this website
 - These T.O.S can be changed at any time
 - You agree to there T.O.S on useing this website

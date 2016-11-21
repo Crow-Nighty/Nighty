@@ -2,32 +2,25 @@
 
 error_reporting (E_ALL ^ E_NOTICE); /* 1st line (recommended) */
 
+ob_start();
+
+include 'inc/database.php';
 include 'inc/header.php';
 
-$result = mysqli_query($con, "SELECT * FROM `subscriptions` WHERE `username` = '$username' AND `active` = '1' AND `expires` >= '$date'") or die(mysqli_error($con));
-if (mysqli_num_rows($result) < 1 && $_SESSION['rank'] != "5") {
-	$subscription = "0";
-}else{
-	$subscription = "1";
+if (!isset($_SESSION)) { 
+session_start(); 
 }
 
-if(isset($_POST['purchase'])){
-	$id = mysqli_real_escape_string($con, $_POST['purchase']);
-	$result = mysqli_query($con, "SELECT * FROM `packages` WHERE `id` = '$id'") or die(mysqli_error($con));
+$username = $_SESSION['username'];
 
-	while ($row = mysqli_fetch_array($result)) {
-		$packageprice = $row['price'];
-		$packagename = $website." - ".$row['name'];
-		$custom = $row['id']."|".$username;
-	}
-	
-	$paypalurl = "https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&amount=".urlencode($packageprice)."&business=".urlencode($paypal)."&page_style=primary&item_name=".urlencode($packagename)."&return=http://".$_SERVER['SERVER_NAME'].dirname($_SERVER['REQUEST_URI'])."/purchase.php?action=buy-success&rm=2&notify_url=http://".$_SERVER['SERVER_NAME'].dirname($_SERVER['REQUEST_URI'])."/lib/ipn.php"."&cancel_return=http://".$_SERVER['SERVER_NAME'].dirname($_SERVER['REQUEST_URI'])."/purchase.php?action=buy-error&custom=".urlencode($custom)."&mc_currency=USD";
-	header('Location: '.$paypalurl);
+if (isset($_POST['message']) & isset($_POST['subject']) & isset($_SESSION['username'])) {
+	$subject = mysqli_real_escape_string($con, $_POST['subject']);
+	$message = mysqli_real_escape_string($con, $_POST['message']);
+	$date = date("Y-m-d");
+	mysqli_query($con, "INSERT INTO `support` (`from`, `to`, `subject`, `message`, `date`) VALUES ('$username', 'admin', '$subject', '$message', DATE('$date'))") or die(mysqli_error($con));
 }
 
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -39,7 +32,7 @@ if(isset($_POST['purchase'])){
     <meta name="keyword" content="">
     <link rel="shortcut icon" href="<?php echo $favicon;?>">
 
-    <title><?php echo $website;?> - Purchase</title>
+    <title><?php echo $website;?> - Support</title>
 
     <!-- Bootstrap core CSS -->
     <link href="css/bootstrap.min.css" rel="stylesheet">
@@ -145,7 +138,7 @@ if(isset($_POST['purchase'])){
                       </a>
                   </li>
                   <li>
-                      <a class="active" href="purchase.php">
+                      <a href="purchase.php">
                           <i class="icon-shopping-cart"></i>
                           <span>Purchase</span>
                       </a>
@@ -156,8 +149,8 @@ if(isset($_POST['purchase'])){
                           <span>Generator</span>
                       </a>
                   </li>
-                  <li>
-                      <a href="support.php">
+				  <li>
+                      <a class="active" href="support.php">
                           <i class="icon-envelope"></i>
                           <span>Support</span>
                       </a>
@@ -197,120 +190,57 @@ if(isset($_POST['purchase'])){
       <!--main content start-->
       <section id="main-content">
           <section class="wrapper">
-		  
-              <div class="row product-list">
-				<?php
-					$result = mysqli_query($con, "SELECT * FROM `packages` ORDER BY CAST(price AS DECIMAL(10,2))");
-					while ($row = mysqli_fetch_assoc($result)) {
-						if($row['generator'] == ""){
-							$generatorname = "All";
-						}else{
-							$generatorquery = mysqli_query($con, "SELECT * FROM `generators` WHERE `id` = '$row[generator]'") or die(mysqli_error($con));
-							while($row1 = mysqli_fetch_array($generatorquery)){
-								$generatorname = $row1['name'];
-							}
-						}
-						if($row['accounts'] == "0" || $row['accounts'] == ""){
-							$accounts = "Unlimited";
-						}else{
-							$accounts = $row['accounts']."/day";
-						}
-						echo '
-                          <div class="col-md-4">
-                              <section class="panel">
-                                  <div class="panel-body text-center">
-                                      <a href="#" class="pro-title">
-                                          <H3>'.$row['name'].'</H3>
-                                      </a>
-                                      <p class="price">$'.$row['price'].'</p>
-									  <legend></legend>
-									  <label>Generator(s):</label> '.$generatorname.'</br>
-									  <label>Length:</label> '.$row[length].'</br>
-									  <label>Accounts:</label> '.$accounts.'</br></br>
-									  <form method="POST" action="purchase.php">
-										<input type="hidden" name="purchase" value="'.$row[id].'"/>
-										<button type="submit" class="btn btn-info btn-lg btn-block"
-						';
-						if ($subscription != "0" || $_SESSION['rank'] == "5"){
-							echo "disabled";
-						}
-						echo '
-										><i class="icon-shopping-cart"></i> Buy Now</button>
-									  </form>
-								  </div>
-                              </section>
+
+              <div class="row">
+                  <div class="col-lg-6">
+                      <section class="panel">
+                          <div class="panel-body">
+                              <div class="task-thumb-details">
+                                  <h1>Support Tickets</h1>
+                              </div>
                           </div>
-						';
-					}	 
-				?>
+                          <div id="menu">
+							<div class="list-group">
+								<?php
+									$supportquery = mysqli_query($con, "SELECT * FROM `support` WHERE `to` = '$username' ORDER BY `date` DESC");
+									while ($row = mysqli_fetch_assoc($supportquery)) {
+										echo '
+											<a href="#" class="list-group-item" data-toggle="collapse" data-target="#message'.$row[id].'" data-parent="#menu">
+												<span class="name" style="min-width: 120px;display: inline-block;">'.$row["from"].'</span> <span class="">'.$row["subject"].'</span>
+													<span class="badge">'.$row["date"].'</span> 
+												</span>
+											</a>
+											<div id="message'.$row[id].'" class="sublinks collapse">
+												<textarea class="form-control" rows="8">'.$row[message].'</textarea>
+											</div>
+										';
+									}
+								?>
+							</div>
+						  </div>
+                      </section>
+                  </div>
+				  <div class="col-lg-6">
+                      <section class="panel">
+                          <div class="panel-body">
+                              <div class="task-thumb-details">
+                                  <h1>Submit Support Ticket</h1></br>
+                              </div>
+							  <legend></legend>
+							  <form method="POST"/>
+								<label>Subject:</label></br>
+								<input type="text" name="subject" class="form-control" /></br>
+								<label>Message:</label></br>
+								<textarea name="message" class="form-control" rows="8"></textarea></br>
+								<button class="btn btn-info btn-large btn-block">Submit Ticket</button>
+							  </form>
+                          </div>
+					  </section>
+                  </div>
+				  
               </div>
 
           </section>
-		  
-		  <?php 
-		  
-		  if($_GET['action'] == "buy-success"){
-			  $result = mysqli_query($con, "SELECT * FROM `subscriptions` WHERE `username` = '$username' AND `date` = '$date'") or die(mysqli_error($con));
-			  if (mysqli_num_rows($result) < 1) {
-				  echo '
-					  <div class="modal fade" id="buy-success" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true" style="padding-top: 15%; overflow-y: visible; display: none;">
-						<div class="modal-dialog modal-m">
-							<div class="modal-content">
-								<div class="modal-header">
-									<center><h3 style="margin:0;">Waiting for purchase to complete..</h3></center>
-								</div>
-								<div class="modal-body">
-									<script language="JavaScript" type="text/javascript">  
-										var count = 10;
-										function countDown(){
-										 if (count <=0){  
-										  document.getElementById("timer").innerHTML = "<b>Refreshing...</b>";
-										 }else{  
-										  count--;  
-										  document.getElementById("timer").innerHTML = "<center>Refreshing in "+ count + " seconds</center>";
-												  setTimeout("countDown()", 1000)
-										 }  
-										}
-									</script>
-									<span id="timer"><script>countDown();</script></span></br>
-									<script type="text/javascript">
-										window.setTimeout(function(){window.location.href="purchase.php?action=buy-success"},10000);
-									</script>
-									<div id="progress-bar" class="progress progress-striped active" style="margin-bottom:0;">
-										<div class="progress-bar" style="width: 100%">
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					  </div>
-				  ';
-			  }else{
-				echo '
-					  <div class="modal fade" id="buy-success" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true" style="padding-top: 15%; overflow-y: visible; display: none;">
-						<div class="modal-dialog modal-m">
-							<div class="modal-content">
-								<div class="modal-header">
-									<center><h3 style="margin:0;">Purchase Completed!</h3></center>
-								</div>
-								<div class="modal-body">
-									<div id="progress-bar" class="progress progress-striped" style="margin-bottom:0;">
-										<div class="progress-bar progress-bar-success" style="width: 100%">
-										</div>
-									</div>
-								</div>
-								<center>
-									<p>Thanks for your purchase! You have succesfully received your subscription package.</p>
-									<p>Visit the <a href="generator.php">Generator Page</a> to start generating.</p></br>
-								</center>
-							</div>
-						</div>
-					  </div>
-				';
-			  }
-		  }
-		  ?>
-		  
       </section>
       <!--main content end-->
       <!--footer start-->
@@ -338,17 +268,6 @@ if(isset($_POST['purchase'])){
 
     <!--common script for all pages-->
     <script src="js/common-scripts.js"></script>
-	
-	<?php
-	if($_GET['action'] == "buy-success"){
-		echo "<script type='text/javascript'>
-				$(document).ready(function(){
-				$('#buy-success').modal('show');
-				});
-			  </script>"
-		;
-	}
-	?>
 
   </body>
 </html>

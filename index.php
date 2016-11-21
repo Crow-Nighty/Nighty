@@ -1,204 +1,357 @@
 <?php
 
-include 'db.php';
-include 'dbc.php';
+error_reporting (E_ALL ^ E_NOTICE); /* 1st line (recommended) */
 
-page_protect();
+include "inc/header.php";
 
-$result = mysqli_query($con, "SELECT * FROM `settings`");
-$settings = mysqli_fetch_array($result);
+$result = mysqli_query($con, "SELECT * FROM `subscriptions` WHERE `username` = '$username' AND `active` = '1' AND `expires` >= '$date'") or die(mysqli_error($con));
+if (mysqli_num_rows($result) < 1 && $_SESSION['rank'] != "5") {
+	//header('Location: purchase.php');
+}
+if($_SESSION['rank'] == "5"){
+	$expires = "Lifetime";
+}else{
+	while($row = mysqli_fetch_assoc($result)) {
+		$expires = "Untill ".$row["expires"];
+	}
+}
 
+$totalalts = 0;
+
+$result = mysqli_query($con, "SELECT * FROM `generators`") or die(mysqli_error($con));
+while($row = mysqli_fetch_assoc($result)) {
+	$result2 = mysqli_query($con, "SELECT * FROM `generator$row[id]` WHERE `status` != '0'") or die(mysqli_error($con));
+	$totalalts = $totalalts + mysqli_num_rows($result2);
+}
+
+$result = mysqli_query($con, "SELECT * FROM `generators`") or die(mysqli_error($con));
+while($row = mysqli_fetch_assoc($result)) {
+	$totalgens = mysqli_num_rows($result);
+}
+
+$result = mysqli_query($con, "SELECT * FROM `users`") or die(mysqli_error($con));
+$totalusers = mysqli_num_rows($result);
 
 ?>
-<html><head>
-    
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
     <meta charset="utf-8">
-    <title><?php echo $settings['title']; ?> - Dashboard</title>
-    <meta name="keywords" content="">
-    <meta name="description" content="">
-    <meta name="author" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800">
-    <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Roboto:400,500,700,300">
-    <link rel="stylesheet" type="text/css" href="assets/skin/default_skin/css/theme.css">
-    <link rel="shortcut icon" href="assets/img/favicon.ico">
-   
-    <div id="main">        
-        <header class="navbar navbar-fixed-top bg-light">
-            <div class="navbar-branding dark">
-                <a class="navbar-brand" href="index.php"> <b><?php echo $settings['title']; ?></b> </a>
-            </div>                       
-        </header>  
-        <aside id="sidebar_left" class="nano nano-primary sidebar-default">
-            <div class="nano-content">
-                <ul class="nav sidebar-menu">
-                    <li class="sidebar-label pt20">Menu</li>
-                    <li class="active">
-                        <a href="index.php">
-                            <span class="glyphicons glyphicons-home"></span>
-                            <span class="sidebar-title">Dashboard</span>
-                        </a>
-                    </li> 
-                    <li>
-                        <a href="settings.php">
-                            <span class="glyphicons glyphicons-cogwheel"></span>
-                            <span class="sidebar-title">Account Settings</span>
-                        </a>
-                    </li> 
-<?php
-if(checkAdmin()){
-?>                  
-                    <li>
-                        <a class="accordion-toggle menu-open" href="#">
-                            <span class="glyphicons glyphicons-cogwheel"></span>
-                            <span class="sidebar-title">Admin Settings</span>
-                            <span class="caret"></span>
-                        </a>
-                        <ul class="nav sub-nav" style="">
-                            <li>
-                                <a href="add.php">
-                                    <span class="glyphicons glyphicons-book"></span> Add Accounts </a>
-                            </li>
-                            <li>
-                                <a href="accounts.php">
-                                    <span class="glyphicons glyphicons-show_big_thumbnails"></span> Manage Accounts </a>
-                            </li>
-                            <li>
-                                <a href="users.php">
-                                    <span class="glyphicons glyphicons-sampler"></span> Manage Users </a>
-                            </li>
-                        </ul>
-                    </li>
-<?php
-}
-if(checkPaid()){
-?>
-                    <li>
-                        <a href="generator.php">
-                            <span class="glyphicons glyphicons-cup"></span>
-                            <span class="sidebar-title">Generator</span>                           
-                        </a>                        
-                    </li>
-<?php
-}
-?>                
-                    <li>
-                        <a href="purchase.php">
-                            <span class="glyphicons glyphicons-shopping_cart"></span>
-                            <span class="sidebar-title">Purchase</span>
-                            </a>                        
-                    </li>
-                    <li>
-                        <a href="logout.php">
-                            <span class="glyphicons glyphicons-fire"></span>
-                            <span class="sidebar-title">Log Out</span>
-                        </a>
-                    </li>
-                    <div style="position: absolute; bottom: 5px"><li class="sidebar-label pt20">Created by <a href="https://github.com/welshman/FreeGen" target="_blank">Welshman</a></li></div>
-                </ul>
+    <meta name="description" content="">
+    <meta name="author" content="24/7">
+    <meta name="keyword" content="">
+    <link rel="shortcut icon" href="<?php echo $favicon;?>">
+
+    <title><?php echo $website;?> - Dashboard</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/bootstrap-reset.css" rel="stylesheet">
+	<!--external css-->
+    <link href="assets/font-awesome/css/font-awesome.css" rel="stylesheet" />
+    <!-- Custom styles for this template -->
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/style-responsive.css" rel="stylesheet" />
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 tooltipss and media queries -->
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.js"></script>
+      <script src="js/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+  <section id="container" >
+      <!--header start-->
+      <header class="header white-bg">
+            <div class="sidebar-toggle-box">
+                <div data-original-title="Toggle Navigation" data-placement="right" class="icon-reorder tooltips"></div>
             </div>
-        </aside>
-        <section id="content_wrapper">
-        <section id="content" class="">
-<?php
+            <!--logo start-->
+            <a href="index.php" class="logo"><?php echo $website;?></a>
+            <!--logo end-->
+            <div class="top-nav ">
+                <!--  notification start -->
+                <ul class="nav pull-right top-menu">
+                    <!-- inbox dropdown start-->
+					<?php
+						$result = mysqli_query($con, "SELECT * FROM `support` WHERE `to` = '$username' AND `read` = '0' ORDER BY `id`");
+						$messages = mysqli_num_rows($result);
+							if($messages > 0){
+								echo '
+										<li id="header_inbox_bar" class="dropdown">
+											<a data-toggle="dropdown" class="dropdown-toggle" href="#">
+												<i class="icon-envelope-alt"></i>
+												<span class="badge bg-important">'.$messages.'</span>
+											</a>
+											<ul class="dropdown-menu extended inbox">
+												<div class="notify-arrow notify-arrow-red"></div>
+												<li>
+													<p class="red">You have '.$messages.' new messages</p>
+												</li>
+								';
+								while ($row = mysqli_fetch_assoc($result)) {
+									echo '
+												<li>
+													<a href="support.php">
+														<span class="subject">
+														<span class="from">'.$row['subject'].'</span>
+														<span class="time">'.$row['date'].'</span>
+														</span>
+														<span class="message">
+															'.$row['message'].'
+														</span>
+													</a>
+												</li>
+											';
+								}
+								echo '
+												<li>
+													<a href="support.php">See all messages</a>
+												</li>
+											</ul>
+										</li>
+								';
+							}else{
+							echo '
+								<li id="header_inbox_bar" class="dropdown">
+									<a data-toggle="dropdown" class="dropdown-toggle" href="#">
+										<i class="icon-envelope-alt"></i>
+										<span class="badge bg-important">0</span>
+									</a>
+									<ul class="dropdown-menu extended inbox">
+										<li>
+											<p class="red">You have '.$messages.' new messages</p>
+										</li>
+										<li>
+											<a href="support.php">See all messages</a>
+										</li>
+									</ul>
+								</li>
+							';
+							}
+					?>			
+                    <!-- inbox dropdown end -->
+            </div>
+        </header>
+      <!--header end-->
+      <!--sidebar start-->
+      <aside>
+          <div id="sidebar"  class="nav-collapse ">
+              <!-- sidebar menu start-->
+              <ul class="sidebar-menu" id="nav-accordion">
+                  <li>
+                      <a class="active" href="index.php">
+                          <i class="icon-dashboard"></i>
+                          <span>Dashboard</span>
+                      </a>
+                  </li>
+                  <li>
+                      <a href="purchase.php">
+                          <i class="icon-shopping-cart"></i>
+                          <span>Purchase</span>
+                      </a>
+                  </li>
+                  <li>
+                      <a href="generator.php">
+                          <i class="icon-refresh"></i>
+                          <span>Generator</span>
+                      </a>
+                  </li>
+				  <li>
+                      <a href="support.php">
+                          <i class="icon-envelope"></i>
+                          <span>Support</span>
+                      </a>
+                  </li>
+				  <li>
+                      <a href="lib/logout.php">
+                          <i class="icon-key"></i>
+                          <span>Log Out</span>
+                      </a>
+                  </li>
+                  <?php
+					if (($_SESSION['rank']) == "5") {
+                        echo '
+						  <legend style="margin-bottom: 5px;"></legend>
+						  <li class="sub-menu">
+							  <a href="javascript:;" >
+								  <i class="icon-laptop"></i>
+								  <span>Administration</span>
+							  </a>
+							  <ul class="sub">
+								  <li><a  href="admin-manage.php">Manage</a></li>
+								  <li><a  href="admin-support.php">Support</a></li>
+								  <li><a  href="admin-flagged.php">Flagged</a></li>
+								  <li><a  href="admin-news.php">News</a></li>
+								  <li><a  href="admin-subscriptions.php">Subscriptions</a></li>
+								  <li><a  href="admin-users.php">Users</a></li>
+							  </ul>
+						  </li>
+						';
+					}
+				  ?>
+              </ul>
+              <!-- sidebar menu end-->
+          </div>
+      </aside>
+      <!--sidebar end-->
+      <!--main content start-->
+      <section id="main-content">
+          <section class="wrapper">
+              <!--state overview start-->
+              <div class="row state-overview">
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol terques">
+                              <i class="icon-user"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class="count">
+                                  <?php echo $totalusers;?>
+                              </h1>
+                              <p>Total Users</p>
+                          </div>
+                      </section>
+                  </div>
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol red">
+                              <i class="icon-th-list"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class=" count2">
+                                  <?php echo $totalalts;?>
+                              </h1>
+                              <p>Total Alts</p>
+                          </div>
+                      </section>
+                  </div>
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol yellow">
+                              <i class="icon-refresh"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class=" count2">
+                                  <?php echo $totalgens;?>
+                              </h1>
+                              <p>Total Geneators</p>
+                          </div>
+                      </section>
+                  </div>
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol blue">
+                              <i class="icon-tags"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class=" count4">
+                                  Premium
+                              </h1>
+                              <p><?php echo $expires;?></p>
+                          </div>
+                      </section>
+                  </div>
+              </div>
+              <!--state overview end-->
 
-$sql = "SELECT * FROM users";
-$result = mysqli_query($con, $sql);
-$a_users = mysqli_num_rows($result);
+              <div class="row">
+                  <div class="col-lg-12">
+                      <!--user info table start-->
+                      <section class="panel">
+                          <div class="panel-body">
+                              <div class="task-thumb-details">
+                                  <h1>News Feed</h1>
+                              </div>
+                          </div>
+                          <table class="table table-hover personal-task">
+                              <tbody>
+								<?php
+									$result = mysqli_query($con, "SELECT * FROM `news` ORDER BY `id` DESC");
+									while ($row = mysqli_fetch_assoc($result)) {
+									echo '
+										<tr>
+											<td>
+												<i class=" icon-bell-alt"></i>
+											</td>
+											<td>'.$row['message'].'</td>
+											<td> '.$row['date'].'</td>
+										</tr>
+									';
+									}
+								?>
+                              </tbody>
+                          </table>
+                      </section>
+                      <!--user info table end-->
+                  </div>
+              </div>
 
-$user_name = $_SESSION['user_name'];
-$sql = "SELECT * FROM users WHERE user_name='$user_name'";
-$result = mysqli_query($con, $sql);
-$a_rank = mysqli_fetch_array($result);
-$a_ranks = $a_rank['user_level'];
-if($a_ranks == "1"){
-$a_ranko = "Registered";
-}
-if($a_ranks == "3"){
-$a_ranko = "Upgraded";
-}
-if($a_ranks == "5"){
-$a_ranko = "Admin";
-}
+          </section>
+		  
+		  	<?php 
+				if($_GET['error'] == "no-admin"){
+					echo '
+						<div class="modal fade" id="error" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true" style="padding-top: 15%; overflow-y: visible; display: none;">
+							<div class="modal-dialog modal-sm">
+								<div class="modal-content panel-warning">
+									<div class="modal-header panel-heading">
+										<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+										<center><h3 style="margin:0;"><i class="icon-warning-sign"></i> Error!</h3></center>
+									</div>
+									<div class="modal-body">
+										<center>
+											<strong>You must be an admin to do that.</strong>
+										</center>
+									</div>
+								</div>
+							</div>
+						</div>
+					';
+				}
+			?>
+      </section>
+      <!--main content end-->
+      <!--footer start-->
+      <footer class="site-footer">
+          <div class="text-center">
+              <?php echo $footer;?>
+              <a href="#" class="go-top">
+                  <i class="icon-angle-up"></i>
+              </a>
+          </div>
+      </footer>
+      <!--footer end-->
+  </section>
 
-$sql = "SELECT * FROM accounts WHERE used='0'";
-$result = mysqli_query($con, $sql);
-$a_accounts = mysqli_num_rows($result);
+    <!-- js placed at the end of the document so the pages load faster -->
+    <script src="js/jquery.js"></script>
+    <script src="js/jquery-1.8.3.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/jquery.scrollTo.min.js"></script>
+    <script src="js/jquery.nicescroll.js" type="text/javascript"></script>
+    <script src="js/jquery.customSelect.min.js" ></script>
+    <script src="js/respond.min.js" ></script>
+	
+    <script class="include" type="text/javascript" src="js/jquery.dcjqaccordion.2.7.js"></script>
 
-?>
+    <!--common script for all pages-->
+    <script src="js/common-scripts.js"></script>
+	
+	<?php
+	if(isset($_GET['error'])){
+		echo "<script type='text/javascript'>
+				$(document).ready(function(){
+				$('#error').modal('show');
+				});
+			  </script>"
+		;
+	}
+	?>
 
-<div class="row mb10">
-                    <div class="col-md-4">
-                        <div class="panel bg-info light of-h mb10">
-                            <div class="pn pl20 p5">
-                                <div class="icon-bg"> <i class="fa fa-group"></i> </div>
-                                <h2 class="mt15 lh15"> <b><?php echo $a_users; ?></b> </h2>
-                                <h5 class="text-muted">Users</h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="panel bg-danger light of-h mb10">
-                            <div class="pn pl20 p5">
-                                <div class="icon-bg"> <i class="fa fa-user"></i> </div>
-                                <h2 class="mt15 lh15"> <b><?php echo $a_ranko; ?></b> </h2>
-                                <h5 class="text-muted">Your Rank</h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="panel bg-warning light of-h mb10">
-                            <div class="pn pl20 p5">
-                                <div class="icon-bg"> <i class="fa fa-font"></i> </div>
-                                <h2 class="mt15 lh15"> <b><?php echo $a_accounts; ?></b> </h2>
-                                <h5 class="text-muted">Accounts Available</h5>
-                            </div>
-                        </div>
-                    </div>
-</div class="row">
-
-<div class="panel mb50 sort-disable" data-animate="fadeIn" id="p3" data-panel-color="false" data-panel-remove="false" data-panel-title="false" data-panel-collapse="false">
-                                            <div class="panel-heading">
-                                                <span class="panel-title">Support</span>
-                                            <span class="panel-controls"><a href="#" class="panel-control-loader"></a><a href="#" class="panel-control-fullscreen"></a></span></div>
-                                            <div class="panel-body">
-                                                <p><div align="center">Email: <a href="mailto:<?php echo $settings['email']; ?>"><?php echo $settings['email']; ?> </a></p>
-                                            </div>
-                                            </div>
-<div class="panel mb50 sort-disable" data-animate="fadeIn" id="p3" data-panel-color="false" data-panel-remove="false" data-panel-title="false" data-panel-collapse="false">
-                                            <div class="panel-heading">
-                                                <span class="panel-title">Terms of Service</span>
-                                            <span class="panel-controls"><a href="#" class="panel-control-loader"></a><a href="#" class="panel-control-fullscreen"></a></span></div>
-                                            <div class="panel-body">
-                                                <p> <?php echo $settings['tos']; ?> </p>
-                                            </div>
-                                        </div>
-
-</div>
-                </div>
-
-        </section>
-
-    </div>
-       
-    <script type="text/javascript" src="vendor/jquery/jquery-1.11.1.min.js"></script>
-    <script type="text/javascript" src="vendor/jquery/jquery_ui/jquery-ui.min.js"></script>   
-    <script type="text/javascript" src="assets/js/bootstrap/bootstrap.min.js"></script>   
-    <script type="text/javascript" src="assets/js/utility/utility.js"></script>
-    <script type="text/javascript" src="assets/js/main.js"></script>
-    <script type="text/javascript" src="assets/js/demo.js"></script>
-    <script type="text/javascript">
-        jQuery(document).ready(function() {
-
-            "use strict";
-
-            // Init Theme Core    
-            Core.init();
-
-            // Init Theme Core    
-            Demo.init();
-
-        });
-    </script>
-<div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div>
-</body></html>
+  </body>
+</html>

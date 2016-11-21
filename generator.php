@@ -1,254 +1,395 @@
 <?php
-error_reporting (E_ALL ^ E_NOTICE); /* 1st line (recommended) */
 
-include 'db.php';
-include 'dbc.php';
+include "inc/header.php";
 
-page_protect();
-
-if(!checkPaid()) {
-header("Location: login.php");
-exit();
+$result = mysqli_query($con, "SELECT * FROM `subscriptions` WHERE `username` = '$username' AND `active` = '1' AND `expires` >= '$date'") or die(mysqli_error($con));
+if (mysqli_num_rows($result) < 1 && $_SESSION['rank'] != "5") {
+	header('Location: purchase.php');
+}else{
+	while($row = mysqli_fetch_assoc($result)){
+		$package = $row['package'];
+		$checkpackage = mysqli_query($con, "SELECT * FROM `packages` WHERE `id` = '$package'") or die(mysqli_error($con));
+		while($row1 = mysqli_fetch_assoc($checkpackage)){
+			$generator = $row1['generator'];
+		}
+	}
 }
 
-$result = mysqli_query($con, "SELECT * FROM `settings`");
-$settings = mysqli_fetch_array($result);
-
-$types1 = preg_split("/,/", $settings['types']); 
-
-foreach ($types1 as $types2){ 
-
-$types3 .= "<option value=\"$types2\">$types2</option>";
-
+if (isset($_POST['flagalt']) && isset($_POST['generator'])){
+	$alt = mysqli_real_escape_string($con, $_POST['flagalt']);
+	$generatorid = mysqli_real_escape_string($con, $_POST['generator']);
+	mysqli_query($con, "UPDATE `generator$generatorid` SET `status` = '2' WHERE `alt` = '$alt'") or die(mysqli_error($con));
 }
 
-if(checkPaid()){
-if(!empty($_POST['doGenerate'])){
-$type = $_POST['type'];
-$sql = "SELECT * FROM accounts WHERE used='0' AND type='$type' ORDER BY RAND() LIMIT 1";
-$result = mysqli_query($con, $sql);
-$accountrows = mysqli_num_rows($result);
-if($accountrows == "0"){
-$err = "There are no $type accounts available.";
+$totalalts = 0;
+
+$result = mysqli_query($con, "SELECT * FROM `generators`") or die(mysqli_error($con));
+while($row = mysqli_fetch_assoc($result)) {
+	$result2 = mysqli_query($con, "SELECT * FROM `generator$row[id]` WHERE `status` != '0'") or die(mysqli_error($con));
+	$totalalts = $totalalts + mysqli_num_rows($result2);
 }
-else{
-$account = mysqli_fetch_array($result);
-$id = $account['id'];
-$email = $account['email'];
-$password = $account['password'];
-$user_na = $_SESSION['user_name'];
-$sql = "UPDATE accounts SET used='1', bywho='$user_na' WHERE id='$id'";
-mysqli_query($con, $sql);
+
+$result = mysqli_query($con, "SELECT * FROM `generators`") or die(mysqli_error($con));
+while($row = mysqli_fetch_assoc($result)) {
+	$totalgens = mysqli_num_rows($result);
 }
+
+$generatestotal = 0;
+
+$result = mysqli_query($con, "SELECT * FROM `statistics` WHERE `username` = '$username'") or die(mysqli_error($con));
+while($row = mysqli_fetch_assoc($result)) {
+	$generatestotal = $generatestotal + $row['generated'];
 }
+
+$result = mysqli_query($con, "SELECT * FROM `statistics` WHERE `username` = '$username' AND `date` = '$date'") or die(mysqli_error($con));
+while($row = mysqli_fetch_assoc($result)) {
+	$generatestoday = $row['generated'];
 }
 
 ?>
-<html><head>
-    
-    <meta charset="utf-8">
-    <title><?php echo $settings['title']; ?> - Generator</title>
-    <meta name="keywords" content="">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800">
-    <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Roboto:400,500,700,300">
-    <link rel="stylesheet" type="text/css" href="assets/skin/default_skin/css/theme.css">
-    <link rel="shortcut icon" href="assets/img/favicon.ico">
 
-    <div id="main">
-        <header class="navbar navbar-fixed-top bg-light">
-            <div class="navbar-branding dark">
-                <a class="navbar-brand" href="index.php"> <b><?php echo $settings['title']; ?></b></a>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="24/7">
+    <meta name="keyword" content="">
+    <link rel="shortcut icon" href="<?php echo $favicon;?>">
+
+    <title><?php echo $website;?> - Generator</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/bootstrap-reset.css" rel="stylesheet">
+	<!--external css-->
+    <link href="assets/font-awesome/css/font-awesome.css" rel="stylesheet" />
+    <!-- Custom styles for this template -->
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/style-responsive.css" rel="stylesheet" />
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 tooltipss and media queries -->
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.js"></script>
+      <script src="js/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+  <section id="container" >
+      <!--header start-->
+      <header class="header white-bg">
+            <div class="sidebar-toggle-box">
+                <div data-original-title="Toggle Navigation" data-placement="right" class="icon-reorder tooltips"></div>
+            </div>
+            <!--logo start-->
+            <a href="index.php" class="logo"><?php echo $website;?></a>
+            <!--logo end-->
+            <div class="top-nav ">
+                <!--  notification start -->
+                <ul class="nav pull-right top-menu">
+                    <!-- inbox dropdown start-->
+					<?php
+						$result = mysqli_query($con, "SELECT * FROM `support` WHERE `to` = '$username' AND `read` = '0' ORDER BY `id`");
+						$messages = mysqli_num_rows($result);
+							if($messages > 0){
+								echo '
+										<li id="header_inbox_bar" class="dropdown">
+											<a data-toggle="dropdown" class="dropdown-toggle" href="#">
+												<i class="icon-envelope-alt"></i>
+												<span class="badge bg-important">'.$messages.'</span>
+											</a>
+											<ul class="dropdown-menu extended inbox">
+												<div class="notify-arrow notify-arrow-red"></div>
+												<li>
+													<p class="red">You have '.$messages.' new messages</p>
+												</li>
+								';
+								while ($row = mysqli_fetch_assoc($result)) {
+									echo '
+												<li>
+													<a href="support.php">
+														<span class="subject">
+														<span class="from">'.$row['subject'].'</span>
+														<span class="time">'.$row['date'].'</span>
+														</span>
+														<span class="message">
+															'.$row['message'].'
+														</span>
+													</a>
+												</li>
+											';
+								}
+								echo '
+												<li>
+													<a href="support.php">See all messages</a>
+												</li>
+											</ul>
+										</li>
+								';
+							}else{
+							echo '
+								<li id="header_inbox_bar" class="dropdown">
+									<a data-toggle="dropdown" class="dropdown-toggle" href="#">
+										<i class="icon-envelope-alt"></i>
+										<span class="badge bg-important">0</span>
+									</a>
+									<ul class="dropdown-menu extended inbox">
+										<li>
+											<p class="red">You have '.$messages.' new messages</p>
+										</li>
+										<li>
+											<a href="support.php">See all messages</a>
+										</li>
+									</ul>
+								</li>
+							';
+							}
+					?>			
+                    <!-- inbox dropdown end -->
             </div>
         </header>
-        <aside id="sidebar_left" class="nano nano-primary sidebar-default">
-            <div class="nano-content">
-                <ul class="nav sidebar-menu">
-                    <li class="sidebar-label pt20">Menu</li>
-                    <li>
-                        <a href="index.php">
-                            <span class="glyphicons glyphicons-home"></span>
-                            <span class="sidebar-title">Dashboard</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="settings.php">
-                            <span class="glyphicons glyphicons-cogwheel"></span>
-                            <span class="sidebar-title">Account Settings</span>
-                        </a>
-                    </li> 
-<?php
-if(checkAdmin()){
-?>                    
-                    <li>
-                        <a class="accordion-toggle menu-open" href="#">
-                            <span class="glyphicons glyphicons-cogwheel"></span>
-                            <span class="sidebar-title">Admin Settings</span>
-                            <span class="caret"></span>
-                        </a>
-                        <ul class="nav sub-nav" style="">
-                            <li>
-                                <a href="add.php">
-                                    <span class="glyphicons glyphicons-book"></span> Add Accounts </a>
-                            </li>
-                            <li>
-                                <a href="accounts.php">
-                                    <span class="glyphicons glyphicons-show_big_thumbnails"></span> Manage Accounts </a>
-                            </li>
-                            <li>
-                                <a href="users.php">
-                                    <span class="glyphicons glyphicons-sampler"></span> Manage Users </a>
-                            </li>
-                        </ul>
-                    </li>
-<?php
-}
-if(checkPaid()){
-?>
-                    <li class="active">
-                        <a href="generator.php">
-                            <span class="glyphicons glyphicons-cup"></span>
-                            <span class="sidebar-title">Generator</span>
-                        </a>
-                    </li>
-<?php
-}
-?>
-                    <li>
-                        <a href="purchase.php">
-                            <span class="glyphicons glyphicons-shopping_cart"></span>
-                            <span class="sidebar-title">Purchase</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="logout.php">
-                            <span class="glyphicons glyphicons-fire"></span>
-                            <span class="sidebar-title">Log Out</span>
-                        </a>
-                    </li> 
-                    <div style="position: absolute; bottom: 5px"><li class="sidebar-label pt20">Created by <a href="https://github.com/welshman/FreeGen" target="_blank">Welshman</a></li></div>
-                </ul>
-            </div>
-        </aside>
+      <!--header end-->
+      <!--sidebar start-->
+      <aside>
+          <div id="sidebar"  class="nav-collapse ">
+              <!-- sidebar menu start-->
+              <ul class="sidebar-menu" id="nav-accordion">
+                  <li>
+                      <a href="index.php">
+                          <i class="icon-dashboard"></i>
+                          <span>Dashboard</span>
+                      </a>
+                  </li>
+                  <li>
+                      <a href="purchase.php">
+                          <i class="icon-shopping-cart"></i>
+                          <span>Purchase</span>
+                      </a>
+                  </li>
+                  <li>
+                      <a class="active" href="generator.php">
+                          <i class="icon-refresh"></i>
+                          <span>Generator</span>
+                      </a>
+                  </li>
+				  <li>
+                      <a href="support.php">
+                          <i class="icon-envelope"></i>
+                          <span>Support</span>
+                      </a>
+                  </li>
+				  <li>
+                      <a href="lib/logout.php">
+                          <i class="icon-key"></i>
+                          <span>Log Out</span>
+                      </a>
+                  </li>
+                  <?php
+					if (($_SESSION['rank']) == "5") {
+                        echo '
+						  <legend style="margin-bottom: 5px;"></legend>
+						  <li class="sub-menu">
+							  <a href="javascript:;" >
+								  <i class="icon-laptop"></i>
+								  <span>Administration</span>
+							  </a>
+							  <ul class="sub">
+								  <li><a  href="admin-manage.php">Manage</a></li>
+								  <li><a  href="admin-support.php">Support</a></li>
+								  <li><a  href="admin-statistics.php">Statistics</a></li>
+								  <li><a  href="admin-flagged.php">Flagged</a></li>
+								  <li><a  href="admin-news.php">News</a></li>
+								  <li><a  href="admin-subscriptions.php">Subscriptions</a></li>
+								  <li><a  href="admin-users.php">Users</a></li>
+							  </ul>
+						  </li>
+						';
+					}
+				  ?>
+              </ul>
+              <!-- sidebar menu end-->
+          </div>
+      </aside>
+      <!--sidebar end-->
+      <!--main content start-->
+      <section id="main-content">
+          <section class="wrapper">
+              <!--state overview start-->
+              <div class="row state-overview">
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol terques">
+                              <i class="icon-th-list"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class="count">
+                                  <?php echo $totalalts;?>
+                              </h1>
+                              <p>Total Alts</p>
+                          </div>
+                      </section>
+                  </div>
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol red">
+                              <i class="icon-refresh"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class=" count2">
+                                  <?php echo $totalgens;?>
+                              </h1>
+                              <p>Total Geneators</p>
+                          </div>
+                      </section>
+                  </div>
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol yellow">
+                              <i class="icon-refresh"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class=" count3">
+                                  <?php 
+									if(!isset($generatestoday)){
+										echo "0";
+									}else{
+										echo $generatestoday;
+									}
+								  ?>
+                              </h1>
+                              <p>Your Generates Today</p>
+                          </div>
+                      </section>
+                  </div>
+                  <div class="col-lg-3 col-sm-6">
+                      <section class="panel">
+                          <div class="symbol blue">
+                              <i class="icon-refresh"></i>
+                          </div>
+                          <div class="value">
+                              <h1 class=" count3">
+                                  <?php echo $generatestotal;?>
+                              </h1>
+                              <p>Your Generates Total</p>
+                          </div>
+                      </section>
+                  </div>
+              </div>
+              <!--state overview end-->
+			  
+			  <script type="text/javascript">
+				function select_all(obj) {
+					var text_val=eval(obj);
+					text_val.focus();
+					text_val.select();
+					if (!document.all) return; // IE only
+					r = text_val.createTextRange();
+					r.execCommand('copy');
+				}
+			  </script>
 
-        
-        <section id="content_wrapper">
+              <div class="row">
+				<?php
+				
+					if($generator == "" || $_SESSION['rank'] == 5){
+						$generatorquery = "SELECT * FROM `generators`";
+					}else{
+						$generatorquery = "SELECT * FROM `generators` WHERE `id` = ".$generator;
+					}
+				
+					$result = mysqli_query($con, $generatorquery) or die(mysqli_error($con));
+					while ($row = mysqli_fetch_array($result)) {
+						echo '
+						  <div class="col-lg-4">
+							  <!--user info table start-->
+							  <section class="panel">
+								  <div class="panel-body">
+									  <div class="task-thumb-details">
+										  <h1>'.$row['name'].' Generator</h1>
+									  </div>
+									  <legend></legend>
+									  <input type="text" id="generator'.$row["id"].'" onclick="select_all(this)" class="text-center form-control" placeholder="username:password"></br>
+									  <button id="generate'.$row["id"].'" class="btn btn-info btn-block">Generate</button></br>
+									  <legend></legend>
+									  <form id="flagform'.$row["id"].'" action="generator.php" method="POST">
+										  <input type="hidden" id="flag'.$row["id"].'" name="flagalt" value="">
+										  <input type="hidden" name="generator" value="'.$row["id"].'">
+										  <div class="btn-group btn-group-justified">
+											  <a id="copy'.$row["id"].'" data-clipboard-target="generator'.$row["id"].'" title="Copy" class="btn btn-success">Copy</a>
+											  <a href="javascript:void(0);" onclick=$(this).closest("form").submit(); title="Flag as invalid" class="btn btn-danger">Flag as invalid</a>
+										  </div>
+									  </form>
+								  </div>
+							  </section>
+							  <!--user info table end-->
+						  </div>
+						';
+					}
+				?>
+              </div>
 
-            <section id="content" class="">
+          </section>
+      </section>
+      <!--main content end-->
+      <!--footer start-->
+      <footer class="site-footer">
+          <div class="text-center">
+              <?php echo $footer;?>
+              <a href="#" class="go-top">
+                  <i class="icon-angle-up"></i>
+              </a>
+          </div>
+      </footer>
+      <!--footer end-->
+  </section>
 
-<?php
+    <!-- js placed at the end of the document so the pages load faster -->
+    <script src="js/jquery.js"></script>
+    <script src="js/jquery-1.8.3.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/jquery.scrollTo.min.js"></script>
+    <script src="js/jquery.nicescroll.js" type="text/javascript"></script>
+    <script src="js/jquery.customSelect.min.js" ></script>
+    <script src="js/respond.min.js" ></script>
+	
+	<script src="js/ZeroClipboard.js" ></script>
+	
+    <script class="include" type="text/javascript" src="js/jquery.dcjqaccordion.2.7.js"></script>
 
-if(!empty($err)){
-echo "<div class=\"alert alert-danger alert-dismissable\">
-<button type='button' class=\"close\" data-dismiss=\"alert\" aria-hidden=\"true\">×</button><i class=\"fa fa-remove pr10\"></i><strong>Snap! </strong>$err</div>";
-}
+    <!--common script for all pages-->
+    <script src="js/common-scripts.js"></script>
+	
+	<?php
+	
+	$result = mysqli_query($con, $generatorquery) or die(mysqli_error($con));
+	while ($row = mysqli_fetch_array($result)) {
+		echo '
+			<script>
+			$(document).ready(function(){
+				$("#generate'.$row["id"].'").click(function(){
+				 $.get("lib/generate.php?generator='.$row["id"].'&username='.$username.'", function(response){
+					$("#generator'.$row["id"].'").val(response);
+					$("#flag'.$row["id"].'").val(response);
+				 });
+				});
+			});
+			
+			var client = new ZeroClipboard( document.getElementById("copy'.$row["id"].'") );
 
-?>
+			client.on( "ready", function( readyEvent ) {
 
-<div class="row">
+			  client.on( "aftercopy", function( event ) {
+			  } );
+			} );
 
-                    
-<div class="col-md-12">
+			</script>
+		';
+	}
+	
+	?>
 
-                        
-
-                        
-
-                        <div class="panel">
-                            <div class="panel-heading">
-                                <span class="panel-title">Generator</span>
-                            </div>
-                            <div class="panel-body">
-                                <form class="form-horizontal" role="form" method="post">
-                                    
-                                    <div class="ph30">
-                                        <div class="form-group">
-                                            <div class="input-group">
-                                                <span class="input-group-addon"><i class="fa fa-envelope-o"></i>
-                                                </span>
-                                                <input class="form-control" type="text" value="<?php echo $email; ?>" placeholder="Email / Username" name="email-single">
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <div class="input-group">
-                                                <span class="input-group-addon"><i class="fa fa-key"></i>
-                                                </span>
-                                                <input class="form-control" type="text" value="<?php echo $password; ?>" placeholder="Password" name="password-single">
-                                            </div>
-                                        </div>
-<span class="help-block mt5"><i class="fa fa-bell"></i> Reminder: Please select an Account Type from below before clicking Generate Account</span>
-<div class="tab-content pn br-n admin-form"><label for="product-category" class="field select">
-                                                <select id="product-category" name="type" class="empty">
-                                                    
-<?php
-
-    echo $types3;										
-?>
-                                                                                                       
-                                                    
-                                                </select>
-                                                <i class="arrow"></i>
-  </label></div>
-
-<br><input class="btn btn-primary" type="submit" value="Generate Account" name="doGenerate">
- 
-                                        
-                                        
-                                    </div>
-
-                                </form>
-                            </div>
-                        </div>
-
-
-                    </div>
-
-
-                    
-                </div>
-            </section>
-            <!-- End: Content -->
-
-        </section>
-
-        
-        
-        
-
-    </div>
-    
-
-    
-
-    
-    <script type="text/javascript" src="vendor/jquery/jquery-1.11.1.min.js"></script>
-    <script type="text/javascript" src="vendor/jquery/jquery_ui/jquery-ui.min.js"></script>
-
-    
-    <script type="text/javascript" src="assets/js/bootstrap/bootstrap.min.js"></script>
-
-    
-    <script type="text/javascript" src="assets/js/utility/utility.js"></script>
-    <script type="text/javascript" src="assets/js/main.js"></script>
-    <script type="text/javascript" src="assets/js/demo.js"></script>
-    <script type="text/javascript">
-        jQuery(document).ready(function() {
-
-            "use strict";
-
-            // Init Theme Core    
-            Core.init();
-
-            // Init Theme Core    
-            Demo.init();
-
-        });
-    </script>
-    
-
-
-
-
-<div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div><div class="jvectormap-label"></div></body></html>
+  </body>
+</html>
