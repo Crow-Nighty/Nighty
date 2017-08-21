@@ -18,7 +18,7 @@
 
 ## Donations
 
-BTC: 1MWgtdpmAYrrtbC6z5CWGaTf6nGGki6Fj6
+BTC: 1prhouU5LFhepUc7EAmAgPdhSNuXiUW1S
 
 ## Terms of Service (T.O.S)
 
