@@ -16,10 +16,6 @@
 
 ** Coming Soon **
 
-## Donations
-
-BTC: 1prhouU5LFhepUc7EAmAgPdhSNuXiUW1S
-
 ## Terms of Service (T.O.S)
 
 - Do not modify footer of this website
